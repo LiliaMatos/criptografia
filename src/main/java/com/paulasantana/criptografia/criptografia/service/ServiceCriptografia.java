@@ -8,6 +8,7 @@ import java.io.IOException;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -38,31 +39,55 @@ public class ServiceCriptografia {
 		this.enderecoPostData = enderecoPostData;
 	}
 
-
 	public void generateData() throws IOException {
 	
+		CriptografiaData  criptografiaData = getDados();
+		
+		setDecifraCriptografia(criptografiaData);
+		
+		setResumo(criptografiaData);
+		
+		criarArquivo(criptografiaData);
+		
+		postDosDados();
+	}
+
+	private CriptografiaData getDados() {
 		RestTemplate restTemplate = new RestTemplate();
 		ResponseEntity<CriptografiaData> requestGetData = 
 				restTemplate.getForEntity(enderecoGetGenerateData, CriptografiaData.class);
-	
-		CriptografiaData  criptografiaData = requestGetData.getBody();
+		return requestGetData.getBody();
+	}
+
+	private void postDosDados() {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 		
-		Integer numeroDeCasas = Integer.parseInt(criptografiaData.getNumero_casas());
+		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+		body.add("answer", getFile());
+		
+		HttpEntity<MultiValueMap<String, Object>> requestEntity
+		 = new HttpEntity<>(body, headers);
+		 
+		RestTemplate restTemplatePostData = new RestTemplate();
+		ResponseEntity<String> response = restTemplatePostData.postForEntity(enderecoPostData , requestEntity, String.class);
+		
+		System.out.println("Status Code : "+response.getStatusCode());
+		
+	}
+
+	private void setResumo(CriptografiaData criptografiaData) {
+		criptografiaData.setResumo_criptografico(
+				DigestUtils.sha1Hex(criptografiaData.getDecifrado()));
+	}
+
+	private void setDecifraCriptografia(CriptografiaData criptografiaData) {
+		Integer numeroDeCasas = criptografiaData.getNumero_casas();
 		
 		String cifrado = criptografiaData.getCifrado();
 		
 		String decifrado = "";
-		
-//		{
-//		    "numero_casas": 3,
-//		    "token": "de8f693681b29156549ed41d82cab65902eb80bd",
-		//começando com 1 o lenght 75
-		//começando com 0 o length 74
-//		    "cifrado": "li brx fdq qrw zulwh lw grzq lq hqjolvk, brx fdq qrw frgh lw. shwhu kdoshuq",
-//		    "decifrado": "",
-//		    "resumo_criptografico": ""
-//		}
-		
+
 		for (int i = 0; i < cifrado.length(); i++) {
 			String alfabeto = "abcdefghijklmnopqrstuvwxyz";
 			
@@ -73,37 +98,25 @@ public class ServiceCriptografia {
 				
 				decifrado = decifrado.concat(caractereDecifrado);
 			}
-			
 		}
 		
-		System.out.println(decifrado);
 		criptografiaData.setDecifrado(decifrado);
-		
-		criptografiaData.setResumo_criptografico(DigestUtils.sha1Hex(decifrado));
-		
+	}
+
+	private void criarArquivo(CriptografiaData criptografiaData) throws IOException {
 		Gson gson = new Gson();
 		FileWriter file = new FileWriter("/home/paula/Documentos/projetos/criptografia/answer.json");
 		file.write(gson.toJson(criptografiaData));
 		file.flush();
 		file.close();
-		
-		
-		
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-		
-		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-		body.add("file", new FileSystemResource(new File("/home/paula/Documentos/projetos/criptografia/answer.json")));
-
-		HttpEntity<LinkedMultiValueMap<String,Object>> httpEntity = new HttpEntity(body, headers);
-		
-		RestTemplate restTemplatePostData = new RestTemplate();
-		ResponseEntity<String> response = 
-				restTemplatePostData.postForEntity(enderecoPostData, httpEntity, String.class);
-		
-		System.out.println(response);
 	}
 	
+
+	private Resource getFile() {
+		File file = new File("/home/paula/Documentos/projetos/criptografia/answer.json");
+		
+		return new FileSystemResource(file);
+	}
 
 	private char getCaracteredcifrado(char caractere, Integer numeroDeCasas) {
 		String alfabeto = "abcdefghijklmnopqrstuvwxyz";

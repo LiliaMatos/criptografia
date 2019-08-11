@@ -1,19 +1,17 @@
 package com.paulasantana.criptografia.criptografia.entity;
 
-import com.google.gson.Gson;
-
 public class CriptografiaData {
 
-	private String numero_casas;
+	private Integer numero_casas;
 	private String token;
 	private String cifrado;
 	private String decifrado;
 	private String resumo_criptografico;
 	
-	public String getNumero_casas() {
+	public Integer getNumero_casas() {
 		return numero_casas;
 	}
-	public void setNumero_casas(String numero_casas) {
+	public void setNumero_casas(Integer numero_casas) {
 		this.numero_casas = numero_casas;
 	}
 	public String getToken() {
