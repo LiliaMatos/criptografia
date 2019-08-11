@@ -5,8 +5,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-import org.apache.commons.codec.digest.DigestUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
@@ -25,10 +23,8 @@ import com.paulasantana.criptografia.criptografia.entity.CriptografiaData;
 @Service
 public class ServiceCriptografia {
 
-	@Value("url.codenation.generatedata")
 	private String enderecoGetGenerateData;
 	
-	@Value("url.codenation.savedata")
 	private String enderecoPostData;
 	
 	public ServiceCriptografia() {
@@ -40,12 +36,7 @@ public class ServiceCriptografia {
 	}
 
 	public void generateData() throws IOException {
-	
 		CriptografiaData  criptografiaData = getDados();
-		
-		setDecifraCriptografia(criptografiaData);
-		
-		setResumo(criptografiaData);
 		
 		criarArquivo(criptografiaData);
 		
@@ -56,7 +47,14 @@ public class ServiceCriptografia {
 		RestTemplate restTemplate = new RestTemplate();
 		ResponseEntity<CriptografiaData> requestGetData = 
 				restTemplate.getForEntity(enderecoGetGenerateData, CriptografiaData.class);
-		return requestGetData.getBody();
+		
+		CriptografiaData  criptografiaData = requestGetData.getBody();
+		
+		criptografiaData.decifrarCriptografia();
+		
+		criptografiaData.gerarResumo();
+		
+		return criptografiaData;
 	}
 
 	private void postDosDados() {
@@ -72,35 +70,8 @@ public class ServiceCriptografia {
 		RestTemplate restTemplatePostData = new RestTemplate();
 		ResponseEntity<String> response = restTemplatePostData.postForEntity(enderecoPostData , requestEntity, String.class);
 		
+		System.out.println(response.getBody());
 		System.out.println("Status Code : "+response.getStatusCode());
-		
-	}
-
-	private void setResumo(CriptografiaData criptografiaData) {
-		criptografiaData.setResumo_criptografico(
-				DigestUtils.sha1Hex(criptografiaData.getDecifrado()));
-	}
-
-	private void setDecifraCriptografia(CriptografiaData criptografiaData) {
-		Integer numeroDeCasas = criptografiaData.getNumero_casas();
-		
-		String cifrado = criptografiaData.getCifrado();
-		
-		String decifrado = "";
-
-		for (int i = 0; i < cifrado.length(); i++) {
-			String alfabeto = "abcdefghijklmnopqrstuvwxyz";
-			
-			if(!alfabeto.contains(String.valueOf(cifrado.charAt(i)))) {
-				decifrado = decifrado.concat(String.valueOf(cifrado.charAt(i)));
-			}else {
-				String caractereDecifrado = String.valueOf(getCaracteredcifrado(cifrado.charAt(i),numeroDeCasas));
-				
-				decifrado = decifrado.concat(caractereDecifrado);
-			}
-		}
-		
-		criptografiaData.setDecifrado(decifrado);
 	}
 
 	private void criarArquivo(CriptografiaData criptografiaData) throws IOException {
@@ -114,20 +85,9 @@ public class ServiceCriptografia {
 
 	private Resource getFile() {
 		File file = new File("/home/paula/Documentos/projetos/criptografia/answer.json");
-		
 		return new FileSystemResource(file);
 	}
 
-	private char getCaracteredcifrado(char caractere, Integer numeroDeCasas) {
-		String alfabeto = "abcdefghijklmnopqrstuvwxyz";
-		
-		int posicaoCaractere = alfabeto.indexOf(caractere);
-		
-		if(posicaoCaractere < numeroDeCasas) {
-			return alfabeto.charAt((alfabeto.length()-1)-numeroDeCasas);
-		}
-		
-		return alfabeto.charAt(posicaoCaractere-numeroDeCasas);
-	}
+	
 	
 }
